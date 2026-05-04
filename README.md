@@ -1,2 +1,75 @@
 # Downloading-ENTSOE-files-
 Using the ENTSOE FileClient
+
+import pandas as pd
+from pathlib import Path
+from entsoe.files import EntsoeFileClient
+
+# ============================================================
+# CONFIG — LOGIN + OUTPUT DIR
+# ============================================================
+
+USERNAME = "Evelyn.Chen@baringa.com"
+PASSWORD = "S0larPowerAndWind>Gas2024"
+
+# ENTSO-E File Library folder to download
+FOLDER = "ActualGenerationOutputPerGenerationUnit_16.1.A_r3"  
+# Over here you need to find the actual name of your dataset from ENTSOE https://transparencyplatform.zendesk.com/hc/en-us/sections/14686542715028-File-Library-extracts
+
+# Explicit output directory
+OUT_DIR = Path(
+    r"L:\Internal projects\CORAL\2025-11 BM-ID-dev\entsoe-data\raw data\generation\ActualGenerationOutputPerGenerationUnit_16.1.A_r3"
+)
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+# This can be whatever you like 
+
+# ============================================================
+# DOWNLOAD FUNCTION
+# ============================================================
+
+def download_installed_capacity() -> None:
+    """
+    Download all files from the ENTSO-E File Library folder into OUT_DIR.
+    Saves each file as a CSV with minimal cleaning of column names.
+    """
+    client = EntsoeFileClient(username=USERNAME, pwd=PASSWORD)
+
+    print(f"\nListing folder: {FOLDER}")
+    filelist = client.list_folder(FOLDER)  # dict: filename -> file_id
+
+    if not filelist:
+        raise RuntimeError(f"No files found in ENTSO-E folder '{FOLDER}'")
+
+    total_files = len(filelist)
+    print(f"Found {total_files} files to download.")
+
+    for i, (fname, uid) in enumerate(filelist.items(), start=1):
+        print(f"START [{i}/{total_files}] {fname}")
+
+        try:
+            df = client.download_single_file(folder=FOLDER, filename=fname)
+
+            if isinstance(df, pd.DataFrame):
+                df.columns = [str(c).strip() for c in df.columns]
+
+            safe_name = fname.replace("/", "_").replace("\\", "_")
+            if not safe_name.lower().endswith(".csv"):
+                safe_name += ".csv"
+
+            out_path = OUT_DIR / safe_name
+            df.to_csv(out_path, index=False)
+
+            print(f"DONE  [{i}/{total_files}] Saved: {out_path}")
+
+        except Exception as e:
+            print(f"FAIL  [{i}/{total_files}] {fname} -> {e}")
+
+
+# ============================================================
+# RUN
+# ============================================================
+
+if __name__ == "__main__":
+    download_installed_capacity()
+    print("\nAll ENTSO-E Installed Capacity files downloaded.")
+  # You can make it say whatever 
